@@ -68,6 +68,7 @@ class LinReg:
 
 		# run Gibbs sampler for nGibbs steps
 		attempt = 1
+		trial = 20
 		while(attempt):
 
 			# re-run if there is an error during sampling
@@ -75,7 +76,11 @@ class LinReg:
 				alphaGibbs,a0,_,_,_ = bhs(self.xTrain,self.yTrain,nGibbs,0,1)
 			except:
 				print('error during Gibbs sampling. Trying again.')
-				continue
+				trial -= 1
+				if trial > 0:
+					continue
+				else:
+					raise TimeoutError
 
 			# run until alpha matrix does not contain any NaNs
 			if not np.isnan(alphaGibbs).any():
