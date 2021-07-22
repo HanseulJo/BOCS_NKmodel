@@ -10,6 +10,8 @@ from itertools import combinations
 from LinReg import LinReg
 from sample_models import sample_models
 
+from tqdm import tqdm
+
 def BOCS(inputs, order, acquisitionFn):
 	# BOCS: Function runs binary optimization using simulated annealing on
 	# the model drawn from the distribution over beta parameters
@@ -43,7 +45,7 @@ def BOCS(inputs, order, acquisitionFn):
 	model_iter = np.zeros((n_iter, n_vars))
 	obj_iter   = np.zeros(n_iter)
 
-	for t in range(n_iter):
+	for t in tqdm(range(n_iter), desc=f"Iteration({acquisitionFn})"):
 
 		# Draw alpha vector
 		alpha_t = LR.alpha
