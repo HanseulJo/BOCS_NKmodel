@@ -42,6 +42,10 @@ def main(kwargs):
     inputs['lambda']     = kwargs['lambda']
     inputs['NKmodel']    = nkmodel
 
+    # Save results (1)
+    save_dir = os.path.join("BOCSpy", "NKmodel_BOCS_Runs")
+    seed_str = f"seed{im_seed_:04d}R{ctrbs_seed_:04d}"
+
     # Save objective function and regularization term
     def evaluate(x):
         if x.ndim == 1:
@@ -71,11 +75,28 @@ def main(kwargs):
     else:
         inputs['x_vals']   = sample_models(inputs['n_init'], inputs['n_vars'])
     inputs['y_vals']   = inputs['model'](inputs['x_vals'])
-
+    
     # Run BOCS-SA and BOCS-SDP (order 2)
-    (BOCS_SA_model, BOCS_SA_obj)   = BOCS(inputs.copy(), 2, 'SA')
-    (BOCS_SDP_model, BOCS_SDP_obj) = BOCS(inputs.copy(), 2, 'SDP-l1')
-
+    try:
+        (BOCS_SA_model, BOCS_SA_obj)   = BOCS(inputs.copy(), 2, 'SA')
+        (BOCS_SDP_model, BOCS_SDP_obj) = BOCS(inputs.copy(), 2, 'SDP-l1')
+    except:
+        # Error Handling
+        import time
+        error_log_dir = os.path.join(save_dir, "error_log", time.strftime('%y%m%d-%X', time.localtime(time.time())))
+        os.makedirs(error_log_dir)
+        nkmodel.print_info(path=error_log_dir)
+        file_name = f"inputs_{seed_str}"
+        del inputs['model']
+        del inputs['penalty']
+        with open(os.path.join(error_log_dir, file_name+".pickle"), 'wb') as f:
+            pickle.dump(inputs, f, pickle.HIGHEST_PROTOCOL)
+        del inputs['NKmodel']
+        with open(os.path.join(error_log_dir, file_name+".txt"), 'w') as f:
+            print(inputs, file=f)
+        time.sleep(1.)
+        raise RuntimeError
+    
     BOCS_SA_obj = np.concatenate((inputs["y_vals"], BOCS_SA_obj))
     BOCS_SDP_obj = np.concatenate((inputs["y_vals"], BOCS_SDP_obj))
 
@@ -100,11 +121,9 @@ def main(kwargs):
     fit_opt, _ = nkmodel.get_global_optimum()
     assert fit_opt == -opt_f # regularization = 0
 
-    # Save results
-    seed_str = f"seed{im_seed_:04d}R{ctrbs_seed_:04d}"
-    save_dir = os.path.join("BOCSpy", "NKmodel_BOCS_Runs")
+    # Save results (2)
     runs = glob.glob(os.path.join(save_dir, f"inputs_{seed_str}_*.pickle"))
-    runs = [int(os.path.basename(p).split(".")[0][-5:]) for p in runs]
+    runs = [int(os.path.basename(p).split(".")[0][-3:]) for p in runs]
     run_num = max(runs) + 1 if runs else 0
     file_name = f"inputs_{seed_str}_{run_num:03d}.pickle"
     del inputs['model']

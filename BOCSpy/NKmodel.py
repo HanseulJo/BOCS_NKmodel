@@ -137,6 +137,8 @@ class NKmodel(object):
             return optima2states
     
     def print_info(self, path=None):
+        order = min(10, 2**self.N)
+        optlist = self.get_optimum_and_more(order)
         if path is None:
             print("\nInterdependence Matrix:")
             for i in range(self.N):
@@ -147,23 +149,25 @@ class NKmodel(object):
                 ctrbs = [str(round(v, 4)) for v in ctrbs]
                 fit = str(round(fit, 4))
                 state = "".join([str(x) for x in state])
-                print("\t".join([state] + ctrbs + [fit]))   
+                print("\t".join([state] + ctrbs + [fit]))
+            for i in range(order):
+                opt, optstates = optlist[i]["fitness"], optlist[i]["states"]
+                print(f"{i+1}-th optimum: {opt} {optstates}")
         else:
-            with open(path + "/knowledge.txt", "w") if path is not None else sys.stdout as f1:
+            with open(path + "/knowledge.txt", "w") as f1:
                 for i in range(self.N):
                     print("".join(["X" if b else "O" for b in self.interdependence[i]]), file=f1)
-            with open(path + "/landscape.txt", "w") if path is not None else sys.stdout as f2:
+            with open(path + "/landscape.txt", "w") as f2:
                 d = self.landscape_with_contributions()
                 for state, (fit, ctrbs) in d.items():
                     ctrbs = [str(round(v, 4)) for v in ctrbs]
                     fit = str(round(fit, 4))
                     state = "".join([str(x) for x in state])
                     print("\t".join([state] + ctrbs + [fit]), file=f2)
-        order = min(10, 2**self.N)
-        optlist = self.get_optimum_and_more(order)
-        for i in range(order):
-            opt, optstates = optlist[i]["fitness"], optlist[i]["states"]
-            print(f"{i+1}-th optimum: {opt} {optstates}")
-    
+            with open(path + "/rankboard.txt", "w") as f3:
+                for i in range(order):
+                    opt, optstates = optlist[i]["fitness"], optlist[i]["states"]
+                    print(f"{i+1}-th optimum: {opt} {optstates}", file=f3)
+
     def rank_by_fitness(self, fitness_value, given_landscape=None):
         raise NotImplementedError
