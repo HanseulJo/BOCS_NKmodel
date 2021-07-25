@@ -3,23 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from BOCS import BOCS
 from sample_models import sample_models
-from NKmodel import NKmodel
+from NKmodel import NKmodel, generate_random_seeds_nkmodel
 
-def _generate_random_seeds(seed_str, n_im_seed=3, n_ctrbs_seed=3, n_init_point_seed=3):
-    """
-    Original code: COMBO.experiments.random_seed_config.py
-    """
-    rng_state = np.random.RandomState(seed=sum([ord(ch) for ch in seed_str]))
-    result = {}
-    for _ in range(n_im_seed):
-        result[rng_state.randint(0, 10000)] = (list(rng_state.randint(0, 10000, (n_ctrbs_seed,))), list(rng_state.randint(0, 10000, (n_init_point_seed,))))
-    return result
-
-def generate_random_seeds_nkmodel():
-    """
-    Original code: COMBO.experiments.random_seed_config.py
-    """
-    return _generate_random_seeds(seed_str="NK_MODEL", n_im_seed=100, n_ctrbs_seed=100, n_init_point_seed=100)
 
 def main(kwargs):
     # Random Seed
@@ -60,7 +45,7 @@ def main(kwargs):
         evaluation = nkmodel.fitness(tuple(x), negative=True)  # To solve minimization problem, "negative=True."
         return np.array([evaluation])  # 1 by 1 array
 
-    inputs['model']    = evaluate # compute x^TQx row-wise
+    inputs['model']    = evaluate
     inputs['penalty']  = lambda x: inputs['lambda']*np.sum(x,axis=1)
 
     # Generate initial samples for statistical models
@@ -148,7 +133,7 @@ if __name__ == '__main__':
     parser_ = argparse.ArgumentParser(
         description='Optimization of NK model with BOCS (SA / SDP)')
     parser_.add_argument('--n_eval', dest='n_eval', type=int, default=20)
-    parser_.add_argument('--n_init', dest='n_init', type=int, default=1)
+    parser_.add_argument('--n_init', dest='n_init', type=int, default=2)
     parser_.add_argument('--N', dest='N', type=int, default=6)
     parser_.add_argument('--K', dest='K', type=int, default=1)
     parser_.add_argument('--A', dest='A', type=int, default=2)

@@ -58,13 +58,11 @@ class NKmodel(object):
         Given a state(: a tuple/string of length N), 
         Return fitness value and a list of contributions of each loci.
         """
-        ctrbs = []
         if type(state) == str:
             state = np.array([int(state[i]) for i in range(self.N)])
         else:
             state = np.array(state)
-        for i in self.loci:
-            ctrbs.append(self.calculate_ith_contribution(state, i))
+        ctrbs = [self.calculate_ith_contribution(state, i) for i in self.loci]
         fitness_value = sum(ctrbs) / self.N  # normalized(averaged) fitness value.
         if negative:
             fitness_value = -fitness_value
@@ -171,3 +169,20 @@ class NKmodel(object):
 
     def rank_by_fitness(self, fitness_value, given_landscape=None):
         raise NotImplementedError
+
+
+def _generate_random_seeds(seed_str, n_im_seed=3, n_ctrbs_seed=3, n_init_point_seed=3):
+    """
+    Original code: COMBO.experiments.random_seed_config.py
+    """
+    rng_state = np.random.RandomState(seed=sum([ord(ch) for ch in seed_str]))
+    result = {}
+    for _ in range(n_im_seed):
+        result[rng_state.randint(0, 10000)] = (list(rng_state.randint(0, 10000, (n_ctrbs_seed,))), list(rng_state.randint(0, 10000, (n_init_point_seed,))))
+    return result
+
+def generate_random_seeds_nkmodel():
+    """
+    Original code: COMBO.experiments.random_seed_config.py
+    """
+    return _generate_random_seeds(seed_str="NK_MODEL", n_im_seed=100, n_ctrbs_seed=100, n_init_point_seed=100)
