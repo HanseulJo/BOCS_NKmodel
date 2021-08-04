@@ -1,0 +1,9 @@
+cvxopt==1.2.6
+cvxpy
+cycler==0.10.0
+easydict==1.9
+matplotlib 
+numpy
+pandas==1.3.0
+scikit-learn
+scipy

@@ -89,22 +89,17 @@ class NKmodel(object):
     def fitness_and_contrib_diff(self, state_prev, flip_ind, fitness_prev=None, ctrbs_prev=None, negative=False):
         state_new = flip(state_prev, flip_ind)
         depend_on_flip = self.interdependence[:,flip_ind]
-        
         if fitness_prev is None or ctrbs_prev is None:
             fitness_prev, ctrbs_prev = self.fitness_and_contributions(state_prev, negative=negative)
-
         fitness_new = fitness_prev * self.N
         ctrbs_diff = np.zeros(self.N)
         for j in np.nonzero(depend_on_flip)[0]:
-
             ctrb_new_j = self._calculate_ith_contribution(state_new, j)
             ctrb_prev_j = ctrbs_prev[j]
             fitness_new = fitness_new - ctrb_prev_j + ctrb_new_j
             ctrbs_diff[j] = ctrb_new_j - ctrb_prev_j
         fitness_new /= self.N
-
         return fitness_new, ctrbs_diff
-
 
     def landscape(self, negative=False):
         """
@@ -199,7 +194,7 @@ class NKmodel(object):
                     print(f"{i+1}-th optimum: {opt} {optstates}", file=f3)
 
 
-
+# Fuctions to generate random seeds for NKmodel
 def _generate_random_seeds(seed_str, n_im_seed=3, n_ctrbs_seed=3, n_init_point_seed=3):
     """
     Original code: COMBO.experiments.random_seed_config.py
@@ -215,3 +210,27 @@ def generate_random_seeds_nkmodel():
     Original code: COMBO.experiments.random_seed_config.py
     """
     return _generate_random_seeds(seed_str="NK_MODEL", n_im_seed=100, n_ctrbs_seed=100, n_init_point_seed=100)
+
+
+# Easy Construction of NKmodel
+def Construct_NKmodel(kwargs, im_seed_num=None, ctrbs_seed_num=None, verbose=False):
+
+    if im_seed_num is None:
+        im_seed_num = np.random.randint(100)
+    if ctrbs_seed_num is None:
+        ctrbs_seed_num = np.random.randint(100)
+    
+    # Random Seed for NKmodel
+    random_seeds = generate_random_seeds_nkmodel()
+    im_seed_ = sorted(random_seeds.keys())[im_seed_num]
+    ctrbs_seed_list_, _ = sorted(random_seeds[im_seed_])
+    ctrbs_seed_ = ctrbs_seed_list_[ctrbs_seed_num]
+
+    # Create NK model
+    nkmodel = NKmodel(kwargs['N'], kwargs['K'], A=kwargs['A'], random_seeds=(im_seed_, ctrbs_seed_))
+
+    # Miscelleneous
+    if verbose:
+        print(f"im_seed_num {im_seed_num} ctrbs_seed_num {ctrbs_seed_num}")
+
+    return nkmodel
