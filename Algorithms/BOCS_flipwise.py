@@ -102,7 +102,7 @@ def neighbor_suggestion(args, stat_model, inputs, max_flips, trials=10, tqdm_on=
 
     # visited penalty
     n_eval = args.n_eval
-    visit_weight = lambda fl: (n_eval - fl)/(n_eval - N) if fl>N else 1.
+    visit_weight = lambda fl: 1 - (fl/n_eval)**2 if fl>1 else 1.
     vw = visit_weight(max_flips)
 
     if max_flips == 1:
@@ -128,5 +128,7 @@ def neighbor_suggestion(args, stat_model, inputs, max_flips, trials=10, tqdm_on=
     if return_scores:
         return ascent_scores
 
-    best_nbr_ind = np.argmax(ascent_scores)
+    best_score = ascent_scores.max()
+    idx_ = [i for i in range(N) if ascent_scores[i] == best_score]
+    best_nbr_ind = np.random.choice(idx_)
     return best_nbr_ind
