@@ -1,5 +1,6 @@
 import sys
 from tqdm import tqdm
+from sklearn.svm import SVR
 from sklearn.linear_model import LinearRegression, Lasso
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
@@ -13,6 +14,7 @@ surrogate_model_dict = {
     'BOCS':      LinReg(order=2),
     'PolyReg':   Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', LinearRegression())]),
     'PolyLasso': Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', Lasso())]),
+    'SVR':       SVR(),
 }
 
 
@@ -101,8 +103,7 @@ def neighbor_suggestion(args, stat_model, inputs, max_flips, trials=10, tqdm_on=
     x_nbrs = neighbors(x)
 
     # visited penalty
-    n_eval = args.n_eval
-    visit_weight = lambda fl: (n_eval - fl)/(n_eval - N) if fl>N else 1.
+    visit_weight = lambda fl: 1. - (fl/args.n_eval)**2 if fl>1 else 1.
     vw = visit_weight(max_flips)
 
     if max_flips == 1:
@@ -129,63 +130,5 @@ def neighbor_suggestion(args, stat_model, inputs, max_flips, trials=10, tqdm_on=
         return ascent_scores
 
     best_nbr_ind = np.argmax(ascent_scores)
-    return best_nbr_ind
-
-
-def neighbor_suggestion_V2(args, stat_model, inputs, max_flips, calculated_acqs=None, return_scores=False, **kwargs):
-    """
-    No stochastic ascent
-    Check expected all reachable states
-    Only consider "estimated improvement"
-    """
-    assert max_flips > 0
-    assert calculated_acqs is not None
-
-    x_vals = inputs['x_vals'].copy()
-    x = x_vals[-1]
-    N = args.N
-    x_nbrs = neighbors(x)
-
-    best_y = inputs['y_vals'].max()
-
-    # visited penalty
-    vw = 1 - (max_flips / args.n_eval)
-
-    if max_flips == 1:
-        nbrs_to_bin = [x_nbrs[i].dot(1 << np.arange(N)[::-1]) for i in range(N)]  # change x_nbrs[i]=array([0,0,1,0,1,1]) into integer 11.
-        ascent_scores = [calculated_acqs[b] for b in nbrs_to_bin]
-    elif max_flips > N:
-        ascent_scores = np.random.random(size=N)
-        for i in range(N):
-            if is_visited(x_vals, x_nbrs[i]):
-                ascent_scores[i] *= vw
-    else:  # 1 < max_flips <= N
-        ascent_scores = []
-        ascent_scores_backup = []
-        all_states = states(N)
-        for i in range(N):
-            # collect idx of reachable states --> 'reachable_idx'
-            reachable_idx = []
-            for j in range(2**N):
-                if is_reachable(x_nbrs[i], all_states[j], max_flips-1):
-                    reachable_idx.append(j)
-            # max acqs of reachable states
-            max_reachable_acq = calculated_acqs[reachable_idx].max()
-            score = max(max_reachable_acq - best_y, 0)  # improvement
-            ascent_scores.append(score)
-            ascent_scores_backup.append(max_reachable_acq)
-        """if np.all(ascent_scores < 1e-4): # no improvement --> ascent by penalized max_reachable_acq
-            ascent_scores = ascent_scores_backup
-            for i in range(N):
-                if is_visited(x_vals, x_nbrs[i]):
-                    ascent_scores[i] *= vw"""
-
-    ascent_scores = np.array(ascent_scores)
-    if return_scores:
-        return ascent_scores
-
-    best_score = np.max(ascent_scores)
-    indices_ = [i for i in range(N) if best_score == ascent_scores[i]]
-    best_nbr_ind = np.random.choice(indices_)
     return best_nbr_ind
 
