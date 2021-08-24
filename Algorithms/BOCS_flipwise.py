@@ -139,6 +139,7 @@ def neighbor_suggestion(args, stat_model, inputs, max_flips, trials=10, tqdm_on=
     if return_scores:
         return ascent_scores
 
-    best_nbr_ind = np.argmax(ascent_scores)
+    best_score = ascent_scores.max()
+    idx_ = [i for i in range(N) if ascent_scores[i] == best_score]
+    best_nbr_ind = np.random.choice(idx_)
     return best_nbr_ind
-

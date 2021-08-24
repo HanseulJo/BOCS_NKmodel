@@ -86,8 +86,6 @@ def GAME(args, chances=None, show_interdependence=False, can_restart=False, surr
 
     print("Preparing the game.....")
 
-    assert surrogate_model_name in ['BOCS', 'PolyReg', 'PolyLasso']
-
     N = args.N
     if chances is None:
         chances = args.n_eval
@@ -245,6 +243,171 @@ def GAME(args, chances=None, show_interdependence=False, can_restart=False, surr
                     print(f"{i+1}-th optimum: {opt:.5f} {optstates}")
 
 
+def GAME_V2(args, chances=None, show_interdependence=False, can_restart=False, surrogate_model_name='PolyReg', back_to_best=False, ascent_trial=64):
+    from Models.NK_Landscape import binarr2int, int2binarr, NK_landscape
+    print("Preparing the game.....")
+
+    N = args.N
+    if chances is None:
+        chances = args.n_eval
+    elif chances != args.n_eval:
+        print("args.n_eval changed:", chances)
+        args.n_eval = chances
+    all_states = states(N)
+    
+    # Construct NKmodel
+    inter_mat, ctrb_map, landscape = NK_landscape(N=N, K=args.K)
+    landscape_sort_ind = np.argsort(-landscape[:,-1]) # sort in ascending order
+    optimum = landscape[landscape_sort_ind[0]][-1]  # maximum fitness value
+    min_fit_ind = landscape_sort_ind[-1]              # index of minimum-fitness-value state
+    if show_interdependence:
+        print(inter_mat) # Boolean interdependence matrix
+    
+    # initial state
+    init_x = int2binarr(min_fit_ind, width=N)  # start from teh bottom
+    init_payoff = landscape[min_fit_ind]
+    init_ctrb, init_y = init_payoff[:-1], np.array([init_payoff[-1]])
+
+    # Compute reachable optimum
+    reachable_optimum = None
+    for idx in landscape_sort_ind:
+        if is_reachable(init_x, int2binarr(idx, width=N), chances):
+            reachable_optimum = landscape[idx][-1]
+            break
+    
+    play = True
+    while play:
+        inputs = {'x_vals': init_x.reshape(1,-1), 'y_vals': init_y}
+        best = {'x': init_x.copy(), 'y': float(init_y), 'round': 1}  # store so far best result
+        curr_ctrb = init_ctrb.copy()
+
+        # Surrogate model
+        LR = surrogate_model_dict[surrogate_model_name]
+        
+        fit_diff = 0                # fitness  difference (previous --> current)       
+        ctrb_diff = np.zeros(N)    # contrib. difference (previous --> current)
+
+        next_x = init_x.copy()
+        next_y = init_y
+        PATH = None
+        print()
+        for ROUND in range(1, chances+1):
+            print(f"*** Round {ROUND}/{chances} ***")
+            print( "Previous results:")
+            print( "Current state:", next_x, '<== IMPROVED' if ROUND>1 and np.all(best['x'] == next_x) else '')
+            print(f"Current fitness: {float(next_y):.4f} ({float(fit_diff):.4f} from before)")
+            print( "Current improvement of contributions:", ctrb_diff)
+            print()
+
+            # Flip-index suggestion
+            left_chance = chances - ROUND + 1
+            if PATH is None:
+                if ROUND > 1:
+                    stat_model = lambda x: LR.predict(x.reshape(1,N))[0]
+                    acqs_ = LR.predict(all_states)
+                    ascent_scores = neighbor_suggestion(args, stat_model, inputs, left_chance, trials=ascent_trial, tqdm_on=True, calculated_acqs=acqs_, return_scores=True)
+                    best_score = ascent_scores.max()
+                    idx_ = [i for i in range(N) if ascent_scores[i] == best_score]
+                    flip_suggest = np.random.choice(idx_)
+                else: # ROUND == 1
+                    ascent_scores = np.ones(N) / 2        # uniformly random suggestion
+                    flip_suggest = np.random.randint(6)
+                print(f">>> The ALGORITHM says {flip_suggest+1}-th is the best position to flip, because...")
+                for i in range(6):
+                    print(f">>> the value of flipping {i+1}-th position is {ascent_scores[i]:.4f};")
+            elif back_to_best:
+                flip_suggest = PATH[-left_chance]
+                print(f">>> The ALGORITHM says {flip_suggest+1}-th is the best position to flip, because...")
+                print(f">>> You are ON A WAY to go back to the so-far-best (reachable) state !:", objective_x)
+            print()
+
+            # Flip-index Choice (by Player)
+            flip_idx = player_decision(N, inputs, best, next_x)
+            
+            # Compute next state / fitness / contribution improvement
+            next_x = flip(next_x, flip_idx)
+            next_payoff = landscape[binarr2int(next_x)]
+            curr_ctrb_temp, next_y_temp = next_payoff[:-1], np.array([next_payoff[-1]])
+            fit_diff = next_y_temp - next_y
+            ctrb_diff = curr_ctrb_temp - curr_ctrb
+            curr_ctrb, next_y = curr_ctrb_temp, next_y_temp
+
+            # inputs update
+            add_data(inputs, next_x, next_y)
+
+            # if you don't use Back-to-reachable-Best heuristic,
+            # this if condition is not necessary
+            if back_to_best and (ROUND >= chances - N):
+                # If the player did different action from the suggestion, initialize PATH
+                if flip_suggest != flip_idx:
+                    PATH = None 
+
+                # Possibly, update PATH (if it exists)
+                if (PATH is not None) and (left_chance-1>0) and ((left_chance-1) % 2 == 0) and (next_y > objective_y):  # new reachable best --> update PATH
+                    PATH[-(left_chance-1):] = wander(next_x, left_chance-1)
+            
+                # At some point, we should save a PATH to reachable best so far.
+                if PATH is None: 
+                    PATH, objective_y, objective_x = monitor_reachable_best(inputs['x_vals'], inputs['y_vals'], ROUND, chances, show_objective_x=True)
+                    print("*#*#* Notice: From now, your on the way to go back to the state:", objective_x)
+                    print("*#*#* Of course, you may take different way from the algorithm's suggestion! ")
+                    time.sleep(0.5)
+            
+            # surrogate model train
+            LR.fit(inputs['x_vals'], inputs['y_vals'])
+
+            # best state update
+            if next_y > best['y']:
+                best["y"] = next_y
+                best["x"] = next_x
+                best["round"] = ROUND
+            print("\n"+"="*100+"\n")
+        
+        time.sleep(2)
+        print("THE END: All the chances Ran out!")
+        print("Finally, your best attempt is:")
+        _show_best(best)
+        print()
+
+        print("Also, your FINAL attempt is:")
+        print("*** Displaying Your Final Score ***")
+        print("final x :", next_x)
+        print("final y :", next_y)
+        print()
+
+        time.sleep(2)
+        # Assesment of result
+        if abs(float(next_y) - optimum) <= 1e-5:
+            print("You have reached the global optimum !!! You made it !!!")
+            play = False
+        else:
+            print("You did not reached the global optimum.")
+            if abs(float(next_y) - reachable_optimum) <= 1e-5:
+                print("However, you did your best!! (Your final answer is 'reachable-optimum')")
+                play = False
+            else:
+                print("Well, everyone has their bad days.")
+        print()
+        
+        # Ask whether to restart
+        play = play and can_restart
+        time.sleep(3)
+        if play:
+            print("Do you want to try again? (with the same landscape)")
+            if _yes_or_no():
+                print("Caution: your best score will be removed from the memory\n")
+            else:
+                play = False
+        
+        # Scoreboard
+        if not play:
+            print("Do you want to see the score board? (Caution: It will print 64-line results.")
+            if _yes_or_no():
+                for i, idx in enumerate(landscape_sort_ind):
+                    opt = landscape[idx][-1]
+                    optstate = int2binarr(idx, width=N)
+                    print(f"{i+1}-th optimum: {opt:.5f} {optstate}")
+
 if __name__ == "__main__":
     args = EasyDict()
 
@@ -259,7 +422,7 @@ if __name__ == "__main__":
     np.set_printoptions(precision=3)
 
     # Modify!
-    GAME(args, chances=18, show_interdependence=False, surrogate_model_name='PolyReg', back_to_best=False, ascent_trial=64)
+    GAME_V2(args, chances=18, show_interdependence=False, surrogate_model_name='PolyReg', back_to_best=False, ascent_trial=64)
 
     # surrogate_model_name은 'BOCS', 'PolyReg', 'Lasso' 중에서 고를 수 있습니다. 속도와 정확성을 위해 PolyReg 또는 Lasso를 추천합니다. (BOCS가 4배 정도 느립니다.)
     # back_to_best는 True, False 중에서 고를 수 있으며, True 이면 Back-to-Reachable-Best Heuristic을 마지막 N=6번에 적용합니다. False를 추천합니다.
