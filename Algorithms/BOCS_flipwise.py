@@ -11,10 +11,20 @@ from .LinReg import LinReg
 
 
 surrogate_model_dict = {
-    'BOCS':      LinReg(order=2),
-    'PolyReg':   Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', LinearRegression())]),
-    'PolyLasso': Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', Lasso())]),
-    'SVR':       SVR(),
+    'BOCS':     LinReg(order=2),
+    'SVR':      SVR(C=100),
+    'PolyReg':  Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', LinearRegression())]),
+    'PolyReg3': Pipeline([('poly', PolynomialFeatures(degree=3, interaction_only=True)), ('linear', LinearRegression())]),
+    'PolyReg4': Pipeline([('poly', PolynomialFeatures(degree=4, interaction_only=True)), ('linear', LinearRegression())]),
+    'PolyReg5': Pipeline([('poly', PolynomialFeatures(degree=5, interaction_only=True)), ('linear', LinearRegression())]),
+    'PolyReg6': Pipeline([('poly', PolynomialFeatures(degree=6, interaction_only=True)), ('linear', LinearRegression())]),
+    'PolyReg7': Pipeline([('poly', PolynomialFeatures(degree=7, interaction_only=True)), ('linear', LinearRegression())]),
+    'Lasso':    Pipeline([('poly', PolynomialFeatures(interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
+    'Lasso3':   Pipeline([('poly', PolynomialFeatures(degree=3, interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
+    'Lasso4':   Pipeline([('poly', PolynomialFeatures(degree=4, interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
+    'Lasso5':   Pipeline([('poly', PolynomialFeatures(degree=5, interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
+    'Lasso6':   Pipeline([('poly', PolynomialFeatures(degree=6, interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
+    'Lasso7':   Pipeline([('poly', PolynomialFeatures(degree=7, interaction_only=True)), ('linear', Lasso(alpha=1e-3))]),
 }
 
 
