@@ -284,7 +284,7 @@ def GAME_V2(args, chances=None, show_interdependence=False, can_restart=False, s
         # Surrogate model
         LR = surrogate_model_dict[surrogate_model_name]
         
-        fit_diff = 0                # fitness  difference (previous --> current)       
+        fit_diff = 0               # fitness  difference (previous --> current)       
         ctrb_diff = np.zeros(N)    # contrib. difference (previous --> current)
 
         next_x = init_x.copy()

@@ -22,6 +22,7 @@ def dependency(N, K):  # interdependency matrix
     return interdependence
 
 def contri(N, K):  # contribution map
+    # each i-th row is a single contribution map for i-th position.
     return np.random.random(size=(N,2**(K+1)))  # floats [0, 1]
 
 def _calculate_ith_contribution(state, ctrb_map, inter_mat, i):
