@@ -261,6 +261,6 @@ if __name__ == "__main__":
     # Modify!
     GAME(args, chances=18, show_interdependence=False, surrogate_model_name='PolyReg', back_to_best=False, ascent_trial=64)
 
-    # surrogate_model_name은 'BOCS', 'PolyReg', 'PolyLasso' 중에서 고를 수 있습니다. 속도와 정확성을 위해 PolyReg 또는 PolyReg를 추천합니다. (BOCS가 4배 정도 느립니다.)
+    # surrogate_model_name은 'BOCS', 'PolyReg', 'Lasso' 중에서 고를 수 있습니다. 속도와 정확성을 위해 PolyReg 또는 Lasso를 추천합니다. (BOCS가 4배 정도 느립니다.)
     # back_to_best는 True, False 중에서 고를 수 있으며, True 이면 Back-to-Reachable-Best Heuristic을 마지막 N=6번에 적용합니다. False를 추천합니다.
     # ascent_trial은 아무런 자연수를 넣어도 됩니다. 작을수록 빠르지만 부정확하며, 클수록 느리지만 정확합니다.
